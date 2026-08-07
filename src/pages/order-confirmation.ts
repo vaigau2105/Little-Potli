@@ -58,7 +58,7 @@ export function orderConfirmationPage(config: SiteConfig = DEFAULT_SITE_CONFIG):
       </div>
 
       <div class="text-center space-y-3">
-        <p class="text-sm text-brand-maroon/60">A confirmation email has been sent to your email address.</p>
+        <p id="conf-email-status" class="text-sm text-brand-maroon/60"></p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
           <a href="/shop" class="px-6 py-3 bg-brand-pink text-white rounded-full font-medium hover:bg-brand-pink-hover transition-colors text-sm">
             <i class="fas fa-shopping-bag mr-2"></i> Continue Shopping
@@ -136,6 +136,22 @@ export function orderConfirmationPage(config: SiteConfig = DEFAULT_SITE_CONFIG):
         if (order.gift_message) {
           document.getElementById('conf-gift-section').classList.remove('hidden');
           document.getElementById('conf-gift-message').textContent = '"' + order.gift_message + '"';
+        }
+
+        // Email status - conditional messaging
+        var emailEl = document.getElementById('conf-email-status');
+        if (order.email_status === 'sent') {
+          emailEl.textContent = 'A confirmation email has been sent to your email address.';
+          emailEl.className = 'text-sm text-green-600';
+        } else if (order.email_status === 'failed') {
+          emailEl.textContent = "We couldn't send the confirmation email, but don't worry — your order is confirmed! We'll email you shortly.";
+          emailEl.className = 'text-sm text-amber-600';
+        } else if (order.email_status === 'skipped') {
+          emailEl.textContent = 'Your order is confirmed. Track updates on WhatsApp.';
+          emailEl.className = 'text-sm text-brand-maroon/60';
+        } else {
+          emailEl.textContent = 'Your order is confirmed. A confirmation email will arrive shortly.';
+          emailEl.className = 'text-sm text-brand-maroon/60';
         }
 
       } catch(e) { showNotFound(); }

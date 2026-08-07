@@ -104,12 +104,17 @@ type EmailConfig = {
   replyTo: string       // support/store email shown in body & reply-to header
 }
 
+type EmailResult = {
+  success: boolean
+  error?: string       // safe error message (no secrets)
+}
+
 async function sendOrderConfirmationEmail(
   config: EmailConfig,
   to: string,
   orderNumber: string,
   orderDetails: { items: any[]; total: number; shippingAddress: any }
-): Promise<boolean> {
+): Promise<EmailResult> {
   try {
     const itemsHtml = orderDetails.items
       .map(item => `<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">${item.name}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0">x${item.quantity}</td><td style="padding:8px;border-bottom:1px solid #f0f0f0;text-align:right">₹${item.price.toLocaleString('en-IN')}</td></tr>`)
@@ -163,10 +168,41 @@ async function sendOrderConfirmationEmail(
       })
     })
 
-    return res.ok
-  } catch (e) {
-    console.error('Email send failed:', e)
-    return false
+    if (!res.ok) {
+      // Log status without exposing API key
+      const statusText = `Resend API returned ${res.status}`
+      console.error(`[EMAIL_FAIL] order=${orderNumber} to=${to} reason="${statusText}"`)
+      return { success: false, error: statusText }
+    }
+
+    return { success: true }
+  } catch (e: any) {
+    // Sanitize error - never expose full error object which may contain headers/keys
+    const safeMessage = e?.message ? e.message.replace(/Bearer\s+\S+/gi, 'Bearer [REDACTED]') : 'Unknown error'
+    console.error(`[EMAIL_FAIL] order=${orderNumber} to=${to} reason="${safeMessage}"`)
+    return { success: false, error: safeMessage }
+  }
+}
+
+// Record email send result to database (non-blocking helper)
+async function recordEmailStatus(
+  db: D1Database,
+  orderNumber: string,
+  result: EmailResult
+): Promise<void> {
+  try {
+    if (result.success) {
+      await db.prepare(
+        `UPDATE orders SET email_status = 'sent', email_sent_at = datetime('now'), email_error = NULL WHERE order_number = ?`
+      ).bind(orderNumber).run()
+    } else {
+      await db.prepare(
+        `UPDATE orders SET email_status = 'failed', email_error = ? WHERE order_number = ?`
+      ).bind(result.error || 'Unknown error', orderNumber).run()
+    }
+  } catch (dbErr) {
+    // DB update failure must not propagate - order is already created
+    console.error(`[EMAIL_STATUS_DB_FAIL] order=${orderNumber}`)
   }
 }
 
@@ -460,7 +496,7 @@ app.post('/api/payments/verify', async (c) => {
     ).bind(order_data.coupon_code.toUpperCase()).run()
   }
 
-  // Send confirmation email (non-blocking)
+  // Send confirmation email (non-blocking, never fails the order)
   if (order_data.customer_email && c.env.RESEND_API_KEY) {
     const emailConfig: EmailConfig = {
       apiKey: c.env.RESEND_API_KEY,
@@ -477,7 +513,13 @@ app.post('/api/payments/verify', async (c) => {
         total: order_data.total_amount,
         shippingAddress: order_data.shipping_address
       }
-    ).catch(err => console.error('Email send error:', err))
+    ).then(result => recordEmailStatus(c.env.DB, orderNumber, result))
+      .catch(() => recordEmailStatus(c.env.DB, orderNumber, { success: false, error: 'Unhandled promise rejection' }))
+  } else {
+    // No email to send — mark as skipped
+    c.env.DB.prepare(
+      `UPDATE orders SET email_status = 'skipped' WHERE order_number = ?`
+    ).bind(orderNumber).run().catch(() => {})
   }
 
   return c.json({
@@ -542,7 +584,7 @@ app.post('/api/orders', async (c) => {
       .bind(body.coupon_code.toUpperCase()).run()
   }
 
-  // Send email for COD too
+  // Send email for COD too (non-blocking, never fails the order)
   if (body.customer_email && c.env.RESEND_API_KEY) {
     const emailConfig: EmailConfig = {
       apiKey: c.env.RESEND_API_KEY,
@@ -555,7 +597,12 @@ app.post('/api/orders', async (c) => {
       body.customer_email,
       orderNumber,
       { items: body.items, total: body.total_amount, shippingAddress: body.shipping_address }
-    ).catch(err => console.error('Email send error:', err))
+    ).then(result => recordEmailStatus(c.env.DB, orderNumber, result))
+      .catch(() => recordEmailStatus(c.env.DB, orderNumber, { success: false, error: 'Unhandled promise rejection' }))
+  } else {
+    c.env.DB.prepare(
+      `UPDATE orders SET email_status = 'skipped' WHERE order_number = ?`
+    ).bind(orderNumber).run().catch(() => {})
   }
 
   return c.json({ success: true, order_number: orderNumber, order_id: orderId })
@@ -852,6 +899,79 @@ app.get('/api/admin/customers', adminAuth, async (c) => {
      FROM users u WHERE u.role = 'customer' ORDER BY u.created_at DESC`
   ).all()
   return c.json({ customers: results })
+})
+
+// ============ ADMIN EMAIL RETRY ============
+
+app.post('/api/admin/orders/:id/resend-email', adminAuth, async (c) => {
+  const orderId = c.req.param('id')
+
+  // Fetch order with current email status
+  const order = await c.env.DB.prepare(
+    'SELECT id, order_number, email_status, shipping_address_json, total_amount FROM orders WHERE id = ?'
+  ).bind(orderId).first() as any
+
+  if (!order) return c.json({ error: 'Order not found' }, 404)
+
+  // Deduplication guard: refuse if already sent
+  if (order.email_status === 'sent') {
+    return c.json({ error: 'Email already sent for this order', email_status: 'sent' }, 409)
+  }
+
+  // We need the customer email — pull from shipping address or user record
+  let customerEmail: string | null = null
+  if (order.shipping_address_json) {
+    try {
+      const addr = JSON.parse(order.shipping_address_json)
+      customerEmail = addr.email || null
+    } catch {}
+  }
+  if (!customerEmail) {
+    // Try user email via join
+    const user = await c.env.DB.prepare(
+      'SELECT u.email FROM users u JOIN orders o ON o.user_id = u.id WHERE o.id = ?'
+    ).bind(orderId).first() as any
+    customerEmail = user?.email || null
+  }
+
+  if (!customerEmail) {
+    return c.json({ error: 'No customer email found for this order' }, 400)
+  }
+
+  if (!c.env.RESEND_API_KEY) {
+    return c.json({ error: 'Email service not configured' }, 500)
+  }
+
+  // Fetch order items for the email body
+  const { results: items } = await c.env.DB.prepare(
+    'SELECT name, price, quantity, image_url FROM order_items WHERE order_id = ?'
+  ).bind(order.id).all()
+
+  let shippingAddress = null
+  try { shippingAddress = JSON.parse(order.shipping_address_json) } catch {}
+
+  const emailConfig: EmailConfig = {
+    apiKey: c.env.RESEND_API_KEY,
+    fromAddress: c.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
+    fromName: c.env.EMAIL_FROM_NAME || 'Little Potli',
+    replyTo: c.env.STORE_EMAIL || 'potli.little@gmail.com'
+  }
+
+  const result = await sendOrderConfirmationEmail(
+    emailConfig,
+    customerEmail,
+    order.order_number,
+    { items, total: order.total_amount, shippingAddress }
+  )
+
+  // Record the result synchronously for the admin response
+  await recordEmailStatus(c.env.DB, order.order_number, result)
+
+  if (result.success) {
+    return c.json({ success: true, message: 'Confirmation email resent', email_status: 'sent' })
+  } else {
+    return c.json({ success: false, error: result.error, email_status: 'failed' }, 500)
+  }
 })
 
 // ============ FRONTEND PAGES ============
