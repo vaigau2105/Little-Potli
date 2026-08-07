@@ -8,6 +8,8 @@ type Bindings = {
   RAZORPAY_KEY_ID: string
   RAZORPAY_KEY_SECRET: string
   RESEND_API_KEY: string
+  EMAIL_FROM_ADDRESS: string
+  EMAIL_FROM_NAME: string
   ADMIN_PASSWORD_HASH: string
   JWT_SECRET: string
   STORE_EMAIL: string
@@ -92,8 +94,18 @@ function verifyToken(token: string, secret: string): any {
 }
 
 // Send email via Resend API
+// All sender details and credentials are passed in via config so that
+// switching from a dev/test sender to the production business address
+// (e.g. orders@littlepotli.com) requires only an env-var change.
+type EmailConfig = {
+  apiKey: string
+  fromAddress: string   // e.g. "orders@littlepotli.com" or Resend test address
+  fromName: string      // e.g. "Little Potli"
+  replyTo: string       // support/store email shown in body & reply-to header
+}
+
 async function sendOrderConfirmationEmail(
-  apiKey: string,
+  config: EmailConfig,
   to: string,
   orderNumber: string,
   orderDetails: { items: any[]; total: number; shippingAddress: any }
@@ -112,7 +124,7 @@ async function sendOrderConfirmationEmail(
     <div style="max-width:600px;margin:0 auto;font-family:'Helvetica Neue',Arial,sans-serif;color:#333">
       <div style="background:linear-gradient(135deg,#FFE5EC,#FFFAF5);padding:30px;text-align:center;border-radius:12px 12px 0 0">
         <h1 style="color:#5C0624;margin:0;font-size:24px">Thank You for Your Order!</h1>
-        <p style="color:#E5006D;margin:8px 0 0">Little Potli</p>
+        <p style="color:#E5006D;margin:8px 0 0">${config.fromName}</p>
       </div>
       <div style="padding:30px;background:#fff;border:1px solid #f0f0f0;border-top:none">
         <p>Hi${address?.full_name ? ' ' + address.full_name : ''},</p>
@@ -129,23 +141,24 @@ async function sendOrderConfirmationEmail(
 
         ${addressHtml ? `<div style="margin:20px 0"><h3 style="color:#5C0624;margin:0 0 8px">Delivery Address</h3>${addressHtml}</div>` : ''}
         
-        <p style="color:#666;font-size:14px">You'll receive shipping updates soon. For any queries, reach us at <a href="mailto:vaigau2105@gmail.com" style="color:#E5006D">vaigau2105@gmail.com</a> or WhatsApp +91 90349 10627.</p>
+        <p style="color:#666;font-size:14px">You'll receive shipping updates soon. For any queries, reach us at <a href="mailto:${config.replyTo}" style="color:#E5006D">${config.replyTo}</a> or WhatsApp +91 90349 10627.</p>
       </div>
       <div style="padding:20px;text-align:center;color:#999;font-size:12px">
-        <p>© Little Potli • Curated Gifts, Crafted with Love</p>
+        <p>&copy; ${config.fromName} &bull; Curated Gifts, Crafted with Love</p>
       </div>
     </div>`
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Little Potli <orders@littlepotli.com>',
+        from: `${config.fromName} <${config.fromAddress}>`,
+        reply_to: config.replyTo,
         to: [to],
-        subject: `Order Confirmed - ${orderNumber} | Little Potli`,
+        subject: `Order Confirmed - ${orderNumber} | ${config.fromName}`,
         html
       })
     })
@@ -449,8 +462,14 @@ app.post('/api/payments/verify', async (c) => {
 
   // Send confirmation email (non-blocking)
   if (order_data.customer_email && c.env.RESEND_API_KEY) {
+    const emailConfig: EmailConfig = {
+      apiKey: c.env.RESEND_API_KEY,
+      fromAddress: c.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
+      fromName: c.env.EMAIL_FROM_NAME || 'Little Potli',
+      replyTo: c.env.STORE_EMAIL || 'vaigau2105@gmail.com'
+    }
     sendOrderConfirmationEmail(
-      c.env.RESEND_API_KEY,
+      emailConfig,
       order_data.customer_email,
       orderNumber,
       {
@@ -525,8 +544,14 @@ app.post('/api/orders', async (c) => {
 
   // Send email for COD too
   if (body.customer_email && c.env.RESEND_API_KEY) {
+    const emailConfig: EmailConfig = {
+      apiKey: c.env.RESEND_API_KEY,
+      fromAddress: c.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
+      fromName: c.env.EMAIL_FROM_NAME || 'Little Potli',
+      replyTo: c.env.STORE_EMAIL || 'vaigau2105@gmail.com'
+    }
     sendOrderConfirmationEmail(
-      c.env.RESEND_API_KEY,
+      emailConfig,
       body.customer_email,
       orderNumber,
       { items: body.items, total: body.total_amount, shippingAddress: body.shipping_address }
