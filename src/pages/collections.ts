@@ -1,6 +1,6 @@
-import { htmlHead, navBar, footer, cartDrawer, cartScript } from './layout'
+import { htmlHead, navBar, footer, cartDrawer, cartScript, SiteConfig, DEFAULT_SITE_CONFIG } from './layout'
 
-export function collectionsPage(): string {
+export function collectionsPage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
   return `${htmlHead('Collections')}
 <body class="bg-brand-ivory min-h-screen">
   ${navBar('collections')}
@@ -46,7 +46,7 @@ export function collectionsPage(): string {
       <div id="best-sellers-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
     </section>
   </main>
-  ${footer()}
+  ${footer(config)}
   ${cartDrawer()}
   ${cartScript()}
   <script>

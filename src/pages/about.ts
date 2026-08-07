@@ -1,6 +1,6 @@
-import { htmlHead, navBar, footer, cartDrawer, cartScript } from './layout'
+import { htmlHead, navBar, footer, cartDrawer, cartScript, SiteConfig, DEFAULT_SITE_CONFIG } from './layout'
 
-export function aboutPage(): string {
+export function aboutPage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
   return `${htmlHead('About Us')}
 <body class="bg-brand-ivory min-h-screen">
   ${navBar('about')}
@@ -105,10 +105,10 @@ export function aboutPage(): string {
         <p class="text-brand-gold text-xs tracking-[0.2em] uppercase mb-2">Get in Touch</p>
         <h2 class="font-serif text-3xl font-bold text-brand-maroon mb-8">Contact Us</h2>
         <div class="grid sm:grid-cols-3 gap-6">
-          <a href="mailto:vaigau2105@gmail.com" class="block bg-brand-ivory rounded-2xl p-6 hover:shadow-md transition">
+          <a href="mailto:${config.storeEmail}" class="block bg-brand-ivory rounded-2xl p-6 hover:shadow-md transition">
             <i class="fas fa-envelope text-2xl text-brand-pink mb-3"></i>
             <h3 class="font-serif text-base font-bold text-brand-maroon">Email</h3>
-            <p class="text-sm text-brand-maroon/60 mt-1">vaigau2105@gmail.com</p>
+            <p class="text-sm text-brand-maroon/60 mt-1">${config.storeEmail}</p>
           </a>
           <a href="https://wa.me/919034910627" target="_blank" class="block bg-brand-ivory rounded-2xl p-6 hover:shadow-md transition">
             <i class="fab fa-whatsapp text-2xl text-green-500 mb-3"></i>
@@ -124,7 +124,7 @@ export function aboutPage(): string {
       </div>
     </section>
   </main>
-  ${footer()}
+  ${footer(config)}
   ${cartDrawer()}
   ${cartScript()}
 </body>

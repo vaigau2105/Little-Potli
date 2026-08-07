@@ -86,7 +86,7 @@ INSERT OR IGNORE INTO coupons (code, description, discount_type, discount_value,
 INSERT OR IGNORE INTO site_settings (key, value, type) VALUES
   ('site_name', 'Little Potli', 'text'),
   ('tagline', 'Curated Gifts, Crafted with Love', 'text'),
-  ('contact_email', 'vaigau2105@gmail.com', 'text'),
+  ('contact_email', 'potli.little@gmail.com', 'text'),
   ('contact_phone', '+91 90349 10627', 'text'),
   ('instagram_url', 'https://instagram.com/littlepotli', 'text'),
   ('whatsapp_number', '+919034910627', 'text'),

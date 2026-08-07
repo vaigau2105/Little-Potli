@@ -466,7 +466,7 @@ app.post('/api/payments/verify', async (c) => {
       apiKey: c.env.RESEND_API_KEY,
       fromAddress: c.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
       fromName: c.env.EMAIL_FROM_NAME || 'Little Potli',
-      replyTo: c.env.STORE_EMAIL || 'vaigau2105@gmail.com'
+      replyTo: c.env.STORE_EMAIL || 'potli.little@gmail.com'
     }
     sendOrderConfirmationEmail(
       emailConfig,
@@ -548,7 +548,7 @@ app.post('/api/orders', async (c) => {
       apiKey: c.env.RESEND_API_KEY,
       fromAddress: c.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
       fromName: c.env.EMAIL_FROM_NAME || 'Little Potli',
-      replyTo: c.env.STORE_EMAIL || 'vaigau2105@gmail.com'
+      replyTo: c.env.STORE_EMAIL || 'potli.little@gmail.com'
     }
     sendOrderConfirmationEmail(
       emailConfig,
@@ -866,15 +866,20 @@ import { collectionsPage } from './pages/collections'
 import { aboutPage } from './pages/about'
 import { adminLoginPage } from './pages/admin-login'
 import { adminDashboardPage } from './pages/admin-dashboard'
+import type { SiteConfig } from './pages/layout'
 
-app.get('/', (c) => c.html(homePage()))
+function getSiteConfig(env: Bindings): SiteConfig {
+  return { storeEmail: env.STORE_EMAIL || 'potli.little@gmail.com' }
+}
+
+app.get('/', (c) => c.html(homePage(getSiteConfig(c.env))))
 app.get('/shop', (c) => c.html(shopPage()))
-app.get('/product/:slug', (c) => c.html(productPage()))
-app.get('/build-hamper', (c) => c.html(hamperPage()))
+app.get('/product/:slug', (c) => c.html(productPage(getSiteConfig(c.env))))
+app.get('/build-hamper', (c) => c.html(hamperPage(getSiteConfig(c.env))))
 app.get('/checkout', (c) => c.html(checkoutPage(c.env.RAZORPAY_KEY_ID)))
-app.get('/order-confirmation', (c) => c.html(orderConfirmationPage()))
-app.get('/collections', (c) => c.html(collectionsPage()))
-app.get('/about', (c) => c.html(aboutPage()))
+app.get('/order-confirmation', (c) => c.html(orderConfirmationPage(getSiteConfig(c.env))))
+app.get('/collections', (c) => c.html(collectionsPage(getSiteConfig(c.env))))
+app.get('/about', (c) => c.html(aboutPage(getSiteConfig(c.env))))
 app.get('/admin', (c) => c.redirect('/admin/login'))
 app.get('/admin/login', (c) => c.html(adminLoginPage()))
 app.get('/admin/dashboard', (c) => c.html(adminDashboardPage()))

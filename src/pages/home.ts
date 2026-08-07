@@ -1,6 +1,6 @@
-import { htmlHead, navBar, footer, cartDrawer, cartScript } from './layout'
+import { htmlHead, navBar, footer, cartDrawer, cartScript, SiteConfig, DEFAULT_SITE_CONFIG } from './layout'
 
-export function homePage(): string {
+export function homePage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
   return `${htmlHead('Home')}
 <body class="bg-brand-ivory min-h-screen">
   ${navBar('home')}
@@ -92,7 +92,7 @@ export function homePage(): string {
     </div>
   </section>
 
-  ${footer()}
+  ${footer(config)}
   ${cartDrawer()}
   ${cartScript()}
   <script>

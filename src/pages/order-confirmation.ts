@@ -1,6 +1,6 @@
-import { htmlHead, navBar, footer } from './layout'
+import { htmlHead, navBar, footer, SiteConfig, DEFAULT_SITE_CONFIG } from './layout'
 
-export function orderConfirmationPage(): string {
+export function orderConfirmationPage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
   return `${htmlHead('Order Confirmed')}
 <body class="bg-brand-ivory min-h-screen">
   ${navBar()}
@@ -78,7 +78,7 @@ export function orderConfirmationPage(): string {
     </div>
   </main>
 
-  ${footer()}
+  ${footer(config)}
 
   <script>
     async function loadOrder() {

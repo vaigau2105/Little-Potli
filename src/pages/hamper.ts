@@ -1,6 +1,6 @@
-import { htmlHead, navBar, footer, cartDrawer, cartScript } from './layout'
+import { htmlHead, navBar, footer, cartDrawer, cartScript, SiteConfig, DEFAULT_SITE_CONFIG } from './layout'
 
-export function hamperPage(): string {
+export function hamperPage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
   return `${htmlHead('Build Your Hamper')}
 <body class="bg-brand-ivory min-h-screen">
   ${navBar('hamper')}
@@ -74,7 +74,7 @@ export function hamperPage(): string {
       </div>
     </section>
   </main>
-  ${footer()}
+  ${footer(config)}
   ${cartDrawer()}
   ${cartScript()}
   <script>

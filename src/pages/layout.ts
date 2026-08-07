@@ -1,3 +1,12 @@
+// Site configuration passed from route handlers (sourced from env vars)
+export type SiteConfig = {
+  storeEmail: string
+}
+
+export const DEFAULT_SITE_CONFIG: SiteConfig = {
+  storeEmail: 'potli.little@gmail.com'
+}
+
 // Shared HTML head with brand styling
 export const htmlHead = (title: string, extraHead = '') => `
 <!DOCTYPE html>
@@ -104,7 +113,7 @@ export const navBar = (active = '') => `
   </div>
 </nav>`
 
-export const footer = () => `
+export const footer = (config: SiteConfig = DEFAULT_SITE_CONFIG) => `
 <footer class="bg-brand-maroon text-white pt-16 pb-8">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
@@ -124,7 +133,7 @@ export const footer = () => `
       <div>
         <h4 class="font-serif text-lg font-semibold mb-4">Customer Care</h4>
         <ul class="space-y-2 text-sm text-white/70">
-          <li><a href="/support" class="hover:text-brand-pink-light transition-colors">Contact Us</a></li>
+          <li><a href="/about" class="hover:text-brand-pink-light transition-colors">Contact Us</a></li>
           <li><a href="#" class="hover:text-brand-pink-light transition-colors">Shipping Policy</a></li>
           <li><a href="#" class="hover:text-brand-pink-light transition-colors">Returns & Exchanges</a></li>
           <li><a href="#" class="hover:text-brand-pink-light transition-colors">FAQs</a></li>
@@ -133,7 +142,7 @@ export const footer = () => `
       <div>
         <h4 class="font-serif text-lg font-semibold mb-4">Get in Touch</h4>
         <ul class="space-y-2 text-sm text-white/70">
-          <li><i class="fas fa-envelope mr-2 text-brand-pink-light"></i> vaigau2105@gmail.com</li>
+          <li><a href="mailto:${config.storeEmail}" class="hover:text-brand-pink-light transition-colors"><i class="fas fa-envelope mr-2 text-brand-pink-light"></i> ${config.storeEmail}</a></li>
           <li><i class="fas fa-phone mr-2 text-brand-pink-light"></i> +91 90349 10627</li>
           <li class="pt-2"><a href="https://wa.me/919034910627" class="inline-flex items-center text-brand-pink-light hover:text-white transition-colors"><i class="fab fa-whatsapp mr-2 text-lg"></i> Chat on WhatsApp</a></li>
         </ul>
