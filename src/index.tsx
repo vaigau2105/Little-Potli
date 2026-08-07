@@ -23,6 +23,12 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// Global error handler — always return JSON, never plain text
+app.onError((err, c) => {
+  console.error(`[UNHANDLED_ERROR] ${c.req.method} ${c.req.path}: ${err.message}`)
+  return c.json({ error: 'Internal Server Error' }, 500)
+})
+
 // CORS
 app.use('/api/*', cors())
 
@@ -69,14 +75,25 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 // Generate JWT-like token (base64 encoded with expiry)
+// Base64URL encode (UTF-8 safe, works in Cloudflare Workers)
+function base64url(str: string): string {
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(str)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
 function generateToken(payload: object, secret: string): string {
   const header = { alg: 'HS256', typ: 'JWT' }
   const now = Math.floor(Date.now() / 1000)
   const tokenPayload = { ...payload, iat: now, exp: now + 86400 } // 24h expiry
-  const headerB64 = btoa(JSON.stringify(header))
-  const payloadB64 = btoa(JSON.stringify(tokenPayload))
-  // Simplified - for production, use proper HMAC signing
-  const sig = btoa(JSON.stringify({ s: secret.substring(0, 8), t: now }))
+  const headerB64 = base64url(JSON.stringify(header))
+  const payloadB64 = base64url(JSON.stringify(tokenPayload))
+  // Simplified HMAC - for production use proper crypto.subtle HMAC signing
+  const sig = base64url(JSON.stringify({ s: secret.substring(0, 8), t: now }))
   return `${headerB64}.${payloadB64}.${sig}`
 }
 
@@ -84,7 +101,14 @@ function verifyToken(token: string, secret: string): any {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
-    const payload = JSON.parse(atob(parts[1]))
+    // Decode base64url payload
+    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/') + '=='.slice(0, (4 - parts[1].length % 4) % 4)
+    const binary = atob(padded)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const payload = JSON.parse(new TextDecoder().decode(bytes))
     const now = Math.floor(Date.now() / 1000)
     if (payload.exp && payload.exp < now) return null
     return payload
@@ -635,36 +659,50 @@ app.get('/api/settings', async (c) => {
 // ============ AUTH ROUTES ============
 
 app.post('/api/auth/login', async (c) => {
-  const { email, password } = await c.req.json()
+  try {
+    const { email, password } = await c.req.json()
 
-  if (!email || !password) {
-    return c.json({ error: 'Email and password are required' }, 400)
+    if (!email || !password) {
+      return c.json({ error: 'Email and password are required' }, 400)
+    }
+
+    const user = await c.env.DB.prepare(
+      'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1'
+    ).bind(email.toLowerCase().trim()).first()
+
+    if (!user) {
+      return c.json({ error: 'Invalid credentials' }, 401)
+    }
+
+    // Compare password hash
+    const passwordHash = await hashPassword(password)
+    if ((user as any).password_hash !== passwordHash && (user as any).password_hash !== password) {
+      return c.json({ error: 'Invalid credentials' }, 401)
+    }
+
+    const jwtSecret = c.env.JWT_SECRET || 'littlepotli-secret-key'
+    const token = generateToken(
+      { id: (user as any).id, email: (user as any).email, name: (user as any).name, role: (user as any).role },
+      jwtSecret
+    )
+
+    return c.json({
+      token,
+      user: { id: (user as any).id, email: (user as any).email, name: (user as any).name, role: (user as any).role }
+    })
+  } catch (e: any) {
+    const msg = e?.message || 'Unknown error'
+    // Log enough to diagnose but never expose secrets
+    console.error(`[LOGIN_ERROR] ${msg}`)
+    // Check for common D1 issues
+    if (msg.includes('no such table') || msg.includes('D1_ERROR')) {
+      return c.json({ error: 'Database not configured. Please run migrations.' }, 503)
+    }
+    if (msg.includes('JSON')) {
+      return c.json({ error: 'Invalid request body' }, 400)
+    }
+    return c.json({ error: 'Login failed' }, 500)
   }
-
-  const user = await c.env.DB.prepare(
-    'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1'
-  ).bind(email.toLowerCase().trim()).first()
-
-  if (!user) {
-    return c.json({ error: 'Invalid credentials' }, 401)
-  }
-
-  // Compare password hash
-  const passwordHash = await hashPassword(password)
-  if ((user as any).password_hash !== passwordHash && (user as any).password_hash !== password) {
-    return c.json({ error: 'Invalid credentials' }, 401)
-  }
-
-  const jwtSecret = c.env.JWT_SECRET || 'littlepotli-secret-key'
-  const token = generateToken(
-    { id: (user as any).id, email: (user as any).email, name: (user as any).name, role: (user as any).role },
-    jwtSecret
-  )
-
-  return c.json({
-    token,
-    user: { id: (user as any).id, email: (user as any).email, name: (user as any).name, role: (user as any).role }
-  })
 })
 
 // ============ ADMIN API ROUTES ============
