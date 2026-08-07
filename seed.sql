@@ -1,9 +1,9 @@
 -- Little Potli Seed Data
 
--- Admin user (password: admin123 - hashed with simple SHA256 for demo)
+-- Admin users (password: admin123 - SHA256 hash: 240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9)
 INSERT OR IGNORE INTO users (email, name, phone, password_hash, role) VALUES
-  ('admin@littlepotli.com', 'Little Potli Admin', '+919034910627', 'admin123', 'admin'),
-  ('vaigau2105@gmail.com', 'Vaigau', '+919034910627', 'admin123', 'admin');
+  ('admin@littlepotli.com', 'Little Potli Admin', '+919034910627', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'admin'),
+  ('vaigau2105@gmail.com', 'Vaigau', '+919034910627', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'admin');
 
 -- Categories
 INSERT OR IGNORE INTO categories (name, slug, description, sort_order) VALUES
@@ -78,9 +78,9 @@ INSERT OR IGNORE INTO packaging_materials (name, description, price) VALUES
 
 -- Coupons
 INSERT OR IGNORE INTO coupons (code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, valid_from, valid_until) VALUES
-  ('WELCOME10', 'Welcome 10% off on first order', 'percentage', 10, 500, 500, 1000, '2024-01-01', '2025-12-31'),
-  ('DIWALI20', 'Diwali Special 20% off', 'percentage', 20, 1000, 1000, 500, '2024-10-01', '2024-11-15'),
-  ('FLAT200', 'Flat Rs 200 off on orders above 1500', 'fixed', 200, 1500, 200, 300, '2024-01-01', '2025-12-31');
+  ('WELCOME10', 'Welcome 10% off on first order', 'percentage', 10, 500, 500, 1000, '2024-01-01', '2027-12-31'),
+  ('DIWALI25', 'Diwali Special 25% off', 'percentage', 25, 1000, 1500, 500, '2026-09-01', '2026-12-31'),
+  ('FLAT200', 'Flat Rs 200 off on orders above 1500', 'fixed', 200, 1500, 200, 300, '2024-01-01', '2027-12-31');
 
 -- Site Settings
 INSERT OR IGNORE INTO site_settings (key, value, type) VALUES
