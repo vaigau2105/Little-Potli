@@ -32,6 +32,11 @@ export function loginPage(config: SiteConfig = DEFAULT_SITE_CONFIG): string {
           <i class="fas fa-sign-in-alt mr-2"></i> Sign In
         </button>
       </form>
+
+      <p class="text-center text-sm text-brand-maroon/60 mt-6">
+        Don&apos;t have an account?
+        <a href="/signup" class="text-brand-pink font-medium hover:underline">Sign Up</a>
+      </p>
     </div>
   </main>
 

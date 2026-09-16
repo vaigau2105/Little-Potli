@@ -784,6 +784,81 @@ app.post('/api/auth/login', async (c) => {
   }
 })
 
+// ============ CUSTOMER REGISTRATION ============
+
+app.post('/api/auth/register', async (c) => {
+  try {
+    const body = await c.req.json()
+    const { name, email, password, phone } = body
+
+    // ── Input validation ──
+    if (!name || !email || !password) {
+      return c.json({ error: 'Name, email, and password are required' }, 400)
+    }
+
+    const trimmedName = name.trim()
+    if (trimmedName.length < 2 || trimmedName.length > 100) {
+      return c.json({ error: 'Name must be between 2 and 100 characters' }, 400)
+    }
+
+    const normalEmail = email.toLowerCase().trim()
+    // Basic email format check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalEmail)) {
+      return c.json({ error: 'Please enter a valid email address' }, 400)
+    }
+
+    if (password.length < 8 || password.length > 128) {
+      return c.json({ error: 'Password must be between 8 and 128 characters' }, 400)
+    }
+
+    const trimmedPhone = phone ? phone.trim().slice(0, 15) : null
+
+    // ── Check for existing account ──
+    const existing = await c.env.DB.prepare(
+      'SELECT id FROM users WHERE email = ?'
+    ).bind(normalEmail).first()
+
+    if (existing) {
+      return c.json({ error: 'An account with this email already exists' }, 409)
+    }
+
+    // ── Hash password using same SHA-256 approach as existing auth ──
+    const passwordHash = await hashPassword(password)
+
+    // ── Insert new customer ──
+    const result = await c.env.DB.prepare(
+      'INSERT INTO users (email, name, phone, password_hash, role) VALUES (?, ?, ?, ?, ?)'
+    ).bind(normalEmail, escapeHtml(trimmedName), trimmedPhone, passwordHash, 'customer').run()
+
+    const userId = result.meta.last_row_id
+
+    // ── Auto-login: generate token ──
+    const jwtSecret = c.env.JWT_SECRET || 'littlepotli-secret-key'
+    const token = generateToken(
+      { id: userId, email: normalEmail, name: trimmedName, role: 'customer' },
+      jwtSecret
+    )
+
+    return c.json({
+      token,
+      user: { id: userId, email: normalEmail, name: trimmedName, role: 'customer' }
+    }, 201)
+  } catch (e: any) {
+    const msg = e?.message || 'Unknown error'
+    console.error(`[REGISTER_ERROR] ${msg}`)
+    if (msg.includes('UNIQUE constraint failed')) {
+      return c.json({ error: 'An account with this email already exists' }, 409)
+    }
+    if (msg.includes('no such table') || msg.includes('D1_ERROR')) {
+      return c.json({ error: 'Database not configured. Please run migrations.' }, 503)
+    }
+    if (msg.includes('JSON')) {
+      return c.json({ error: 'Invalid request body' }, 400)
+    }
+    return c.json({ error: 'Registration failed' }, 500)
+  }
+})
+
 // ============ ADMIN API ROUTES ============
 
 app.get('/api/admin/dashboard', adminAuth, async (c) => {
@@ -1104,6 +1179,7 @@ import { aboutPage } from './pages/about'
 import { adminLoginPage } from './pages/admin-login'
 import { adminDashboardPage } from './pages/admin-dashboard'
 import { loginPage } from './pages/login'
+import { signupPage } from './pages/signup'
 import type { SiteConfig } from './pages/layout'
 
 function getSiteConfig(env: Bindings): SiteConfig {
@@ -1122,6 +1198,10 @@ app.get('/about', (c) => c.html(aboutPage(getSiteConfig(c.env))))
 app.get('/login', (c) => {
   const config = getSiteConfig(c.env)
   return c.html(loginPage(config))
+})
+app.get('/signup', (c) => {
+  const config = getSiteConfig(c.env)
+  return c.html(signupPage(config))
 })
 // Obscure admin portal — no public links point here
 app.get('/portal-entry-99', (c) => c.html(adminLoginPage()))
