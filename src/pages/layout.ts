@@ -18,7 +18,7 @@ export const htmlHead = (title: string, extraHead = '') => `
   <meta name="description" content="Little Potli - Curated Gifts, Crafted with Love. Discover handpicked accessories and build your perfect gift hamper.">
   <meta property="og:title" content="${title} | Little Potli">
   <meta property="og:description" content="Curated Gifts, Crafted with Love">
-  <meta property="og:image" content="/static/">
+  <meta property="og:image" content="/static/Logo.png">
   <link rel="icon" href="/static/favicon.ico" type="image/png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
