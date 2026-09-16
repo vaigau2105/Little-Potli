@@ -92,6 +92,9 @@ export const navBar = (active = '') => `
           <i class="fas fa-shopping-bag text-lg"></i>
           <span id="cart-count" class="absolute -top-2 -right-2 bg-brand-pink text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
         </button>
+        <a href="/login" class="text-brand-maroon hover:text-brand-pink transition-colors" title="Login / Account">
+          <i class="fas fa-user-circle text-lg"></i>
+        </a>
         <button class="md:hidden text-brand-maroon" onclick="toggleMobileMenu()"><i class="fas fa-bars text-xl"></i></button>
         <!-- Customer Login / Account Icon -->
         <a href="/login" class="text-brand-maroon hover:text-brand-pink transition-colors relative" title="Account / Login">
@@ -113,6 +116,7 @@ export const navBar = (active = '') => `
       <a href="/collections" class="block text-brand-maroon font-medium py-2">Collections</a>
       <a href="/build-hamper" class="block text-brand-maroon font-medium py-2">Build Hamper</a>
       <a href="/about" class="block text-brand-maroon font-medium py-2">About</a>
+      <a href="/login" class="block text-brand-maroon font-medium py-2"><i class="fas fa-user-circle mr-2"></i>Login / Account</a>
     </div>
   </div>
 </nav>`

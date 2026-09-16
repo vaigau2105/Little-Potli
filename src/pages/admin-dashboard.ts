@@ -104,11 +104,97 @@ export function adminDashboardPage(): string {
     <section id="section-products" class="section-content hidden">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-brand-maroon">All Products</h2>
+        <button onclick="openProductModal()" class="px-4 py-2 bg-brand-pink text-white rounded-lg text-sm font-medium hover:bg-brand-pink-hover transition">
+          <i class="fas fa-plus mr-1"></i> Add Product
+        </button>
       </div>
       <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-        <table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="p-3 text-left text-gray-600 font-medium">Product</th><th class="p-3 text-left text-gray-600 font-medium">Category</th><th class="p-3 text-left text-gray-600 font-medium">Price</th><th class="p-3 text-left text-gray-600 font-medium">Stock</th><th class="p-3 text-left text-gray-600 font-medium">Status</th></tr></thead><tbody id="products-tbody"></tbody></table>
+        <table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="p-3 text-left text-gray-600 font-medium">Product</th><th class="p-3 text-left text-gray-600 font-medium">Category</th><th class="p-3 text-left text-gray-600 font-medium">Price</th><th class="p-3 text-left text-gray-600 font-medium">Stock</th><th class="p-3 text-left text-gray-600 font-medium">Status</th><th class="p-3 text-left text-gray-600 font-medium">Actions</th></tr></thead><tbody id="products-tbody"></tbody></table>
       </div>
     </section>
+
+    <!-- Product Add/Edit Modal -->
+    <div id="product-modal" class="fixed inset-0 z-[200] hidden">
+      <div class="absolute inset-0 bg-black/50" onclick="closeProductModal()"></div>
+      <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-2xl bg-white rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div class="flex items-center justify-between p-6 border-b border-gray-100">
+          <h3 id="product-modal-title" class="text-lg font-semibold text-brand-maroon">Add Product</h3>
+          <button onclick="closeProductModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-lg"></i></button>
+        </div>
+        <form id="product-form" onsubmit="saveProduct(event)" class="p-6 space-y-4">
+          <input type="hidden" id="pf-id">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
+              <input type="text" id="pf-name" required class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea id="pf-description" rows="3" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Price (₹) *</label>
+              <input type="number" id="pf-price" required min="0" step="1" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Compare Price (₹)</label>
+              <input type="number" id="pf-compare-price" min="0" step="1" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select id="pf-category" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+                <option value="">-- None --</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Stock Quantity *</label>
+              <input type="number" id="pf-stock" required min="0" step="1" value="0" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+              <input type="url" id="pf-image" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none" placeholder="https://...">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+              <input type="text" id="pf-sku" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Material</label>
+              <input type="text" id="pf-material" class="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-pink focus:ring-1 focus:ring-brand-pink outline-none">
+            </div>
+            <div class="md:col-span-2 flex flex-wrap gap-4 pt-2">
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="pf-active" checked class="accent-brand-pink"> Active</label>
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="pf-featured" class="accent-brand-pink"> Featured</label>
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="pf-new" class="accent-brand-pink"> New Arrival</label>
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="pf-bestseller" class="accent-brand-pink"> Best Seller</label>
+            </div>
+          </div>
+          <div id="product-form-error" class="hidden text-sm text-red-600 bg-red-50 rounded-lg p-3"></div>
+          <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button type="button" onclick="closeProductModal()" class="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800">Cancel</button>
+            <button type="submit" id="product-save-btn" class="px-6 py-2 bg-brand-pink text-white rounded-lg text-sm font-medium hover:bg-brand-pink-hover transition disabled:opacity-50">
+              <i class="fas fa-save mr-1"></i> Save Product
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 z-[200] hidden">
+      <div class="absolute inset-0 bg-black/50" onclick="closeDeleteModal()"></div>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+        <div class="text-center">
+          <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-trash text-red-500 text-xl"></i></div>
+          <h3 class="font-semibold text-gray-800 mb-2">Delete Product?</h3>
+          <p class="text-sm text-gray-500 mb-6">This will deactivate the product. It won't appear in the shop.</p>
+          <div class="flex gap-3 justify-center">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+            <button id="confirm-delete-btn" onclick="confirmDeleteProduct()" class="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Customers Section -->
     <section id="section-customers" class="section-content hidden">
@@ -130,7 +216,7 @@ export function adminDashboardPage(): string {
   <script>
     const token = localStorage.getItem('littlepotli_admin_token');
     const user = JSON.parse(localStorage.getItem('littlepotli_admin_user') || 'null');
-    if (!token || !user) { window.location.href = '/admin/login'; }
+    if (!token || !user) { window.location.href = '/portal-entry-99'; }
     document.getElementById('admin-name').textContent = user?.name || 'Admin';
 
     const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
@@ -138,7 +224,7 @@ export function adminDashboardPage(): string {
     function logout() {
       localStorage.removeItem('littlepotli_admin_token');
       localStorage.removeItem('littlepotli_admin_user');
-      window.location.href = '/admin/login';
+      window.location.href = '/portal-entry-99';
     }
 
     function showSection(name) {
@@ -200,6 +286,18 @@ export function adminDashboardPage(): string {
       } catch(e) { alert('Failed to update order status'); }
     }
 
+    let allCategories = [];
+    let deleteProductId = null;
+
+    async function loadCategories() {
+      try {
+        const res = await fetch('/api/admin/categories', { headers });
+        const data = await res.json();
+        allCategories = data.categories || [];
+      } catch(e) {}
+    }
+    loadCategories();
+
     async function loadProducts() {
       try {
         const res = await fetch('/api/admin/products', { headers });
@@ -207,9 +305,110 @@ export function adminDashboardPage(): string {
         document.getElementById('products-tbody').innerHTML = (data.products || []).map(p =>
           '<tr class="border-b border-gray-50"><td class="p-3"><div class="flex items-center gap-3">' +
           (p.image_url ? '<img src="' + p.image_url + '" class="w-10 h-10 rounded-lg object-cover">' : '<div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center"><i class="fas fa-image text-gray-300"></i></div>') +
-          '<span class="font-medium text-brand-maroon">' + p.name + '</span></div></td><td class="p-3 text-gray-600">' + (p.category_name || '-') + '</td><td class="p-3 font-medium">\\u20B9' + Number(p.price).toLocaleString('en-IN') + '</td><td class="p-3 ' + (p.stock_quantity <= (p.low_stock_threshold || 5) ? 'text-red-600 font-medium' : 'text-gray-600') + '">' + p.stock_quantity + '</td><td class="p-3">' + (p.is_active ? '<span class="text-green-600 text-xs font-medium">Active</span>' : '<span class="text-red-600 text-xs font-medium">Inactive</span>') + '</td></tr>'
-        ).join('') || '<tr><td colspan="5" class="p-4 text-center text-gray-400">No products.</td></tr>';
+          '<span class="font-medium text-brand-maroon">' + esc(p.name) + '</span></div></td><td class="p-3 text-gray-600">' + esc(p.category_name || '-') + '</td><td class="p-3 font-medium">\\u20B9' + Number(p.price).toLocaleString('en-IN') + '</td><td class="p-3 ' + (p.stock_quantity <= (p.low_stock_threshold || 5) ? 'text-red-600 font-medium' : 'text-gray-600') + '">' + p.stock_quantity + '</td><td class="p-3">' + (p.is_active ? '<span class="text-green-600 text-xs font-medium">Active</span>' : '<span class="text-red-600 text-xs font-medium">Inactive</span>') + '</td>' +
+          '<td class="p-3"><div class="flex gap-1">' +
+          '<button onclick=\\'editProduct(' + JSON.stringify(p).replace(/'/g, "\\\\'") + ')\\' class="px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded" title="Edit"><i class="fas fa-edit"></i></button>' +
+          '<button onclick="deleteProduct(' + p.id + ')" class="px-2 py-1 text-xs text-red-500 hover:bg-red-50 rounded" title="Delete"><i class="fas fa-trash"></i></button>' +
+          '</div></td></tr>'
+        ).join('') || '<tr><td colspan="6" class="p-4 text-center text-gray-400">No products.</td></tr>';
       } catch(e) {}
+    }
+
+    // XSS-safe text helper for rendering user data
+    function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function openProductModal(product) {
+      document.getElementById('product-modal').classList.remove('hidden');
+      document.getElementById('product-form-error').classList.add('hidden');
+      // Populate category dropdown
+      const catSel = document.getElementById('pf-category');
+      catSel.innerHTML = '<option value="">-- None --</option>' + allCategories.map(c =>
+        '<option value="' + c.id + '">' + esc(c.name) + '</option>'
+      ).join('');
+
+      if (product) {
+        document.getElementById('product-modal-title').textContent = 'Edit Product';
+        document.getElementById('pf-id').value = product.id;
+        document.getElementById('pf-name').value = product.name || '';
+        document.getElementById('pf-description').value = product.description || '';
+        document.getElementById('pf-price').value = product.price || '';
+        document.getElementById('pf-compare-price').value = product.compare_price || '';
+        document.getElementById('pf-category').value = product.category_id || '';
+        document.getElementById('pf-stock').value = product.stock_quantity ?? 0;
+        document.getElementById('pf-image').value = product.image_url || '';
+        document.getElementById('pf-sku').value = product.sku || '';
+        document.getElementById('pf-material').value = product.material || '';
+        document.getElementById('pf-active').checked = !!product.is_active;
+        document.getElementById('pf-featured').checked = !!product.is_featured;
+        document.getElementById('pf-new').checked = !!product.is_new_arrival;
+        document.getElementById('pf-bestseller').checked = !!product.is_best_seller;
+      } else {
+        document.getElementById('product-modal-title').textContent = 'Add Product';
+        document.getElementById('product-form').reset();
+        document.getElementById('pf-id').value = '';
+        document.getElementById('pf-active').checked = true;
+      }
+    }
+
+    function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
+
+    function editProduct(product) { openProductModal(product); }
+
+    function deleteProduct(id) {
+      deleteProductId = id;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+    function closeDeleteModal() { document.getElementById('delete-modal').classList.add('hidden'); deleteProductId = null; }
+
+    async function confirmDeleteProduct() {
+      if (!deleteProductId) return;
+      try {
+        await fetch('/api/admin/products/' + deleteProductId, { method: 'DELETE', headers });
+        closeDeleteModal();
+        loadProducts();
+        loadDashboard();
+      } catch(e) { alert('Failed to delete product'); }
+    }
+
+    async function saveProduct(e) {
+      e.preventDefault();
+      const btn = document.getElementById('product-save-btn');
+      const errEl = document.getElementById('product-form-error');
+      btn.disabled = true;
+      errEl.classList.add('hidden');
+
+      const id = document.getElementById('pf-id').value;
+      const body = {
+        name: document.getElementById('pf-name').value,
+        description: document.getElementById('pf-description').value,
+        price: Number(document.getElementById('pf-price').value),
+        compare_price: Number(document.getElementById('pf-compare-price').value) || null,
+        category_id: Number(document.getElementById('pf-category').value) || null,
+        stock_quantity: Number(document.getElementById('pf-stock').value),
+        image_url: document.getElementById('pf-image').value || null,
+        sku: document.getElementById('pf-sku').value || null,
+        material: document.getElementById('pf-material').value || '',
+        is_active: document.getElementById('pf-active').checked ? 1 : 0,
+        is_featured: document.getElementById('pf-featured').checked ? 1 : 0,
+        is_new_arrival: document.getElementById('pf-new').checked ? 1 : 0,
+        is_best_seller: document.getElementById('pf-bestseller').checked ? 1 : 0,
+      };
+
+      try {
+        const url = id ? '/api/admin/products/' + id : '/api/admin/products';
+        const method = id ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, headers, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+        closeProductModal();
+        loadProducts();
+        loadDashboard();
+      } catch(err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     async function loadCustomers() {

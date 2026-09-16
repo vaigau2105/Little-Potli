@@ -32,6 +32,72 @@ app.onError((err, c) => {
 // CORS
 app.use('/api/*', cors())
 
+// ============ SECURITY HEADERS ============
+// CSP, anti-sniffing, clickjack protection on all HTML responses
+app.use('*', async (c, next) => {
+  await next()
+  const ct = c.res.headers.get('content-type') || ''
+  if (ct.includes('text/html')) {
+    c.res.headers.set('X-Content-Type-Options', 'nosniff')
+    c.res.headers.set('X-Frame-Options', 'DENY')
+    c.res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    c.res.headers.set('Content-Security-Policy',
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://checkout.razorpay.com; " +
+      "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; " +
+      "img-src 'self' data: https: blob:; " +
+      "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com; " +
+      "frame-src https://api.razorpay.com https://checkout.razorpay.com;"
+    )
+  }
+})
+
+// ============ XSS SANITIZATION HELPER ============
+// Encode HTML entities in user-supplied text before rendering
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+// ============ RATE LIMITING HELPER ============
+const RATE_LIMIT_MAX = 5        // max failed attempts
+const RATE_LIMIT_WINDOW = 15    // minutes
+
+async function checkRateLimit(db: D1Database, ip: string, email: string): Promise<{ allowed: boolean; remaining: number }> {
+  try {
+    // Use SQLite datetime() for proper comparison with CURRENT_TIMESTAMP format
+    const result = await db.prepare(
+      `SELECT COUNT(*) as cnt FROM login_attempts WHERE ip_address = ? AND email = ? AND attempted_at > datetime('now', '-${RATE_LIMIT_WINDOW} minutes')`
+    ).bind(ip, email).first() as any
+    const count = result?.cnt || 0
+    return { allowed: count < RATE_LIMIT_MAX, remaining: Math.max(0, RATE_LIMIT_MAX - count) }
+  } catch {
+    // If login_attempts table doesn't exist yet, allow login (migration not applied)
+    return { allowed: true, remaining: RATE_LIMIT_MAX }
+  }
+}
+
+async function recordFailedAttempt(db: D1Database, ip: string, email: string): Promise<void> {
+  try {
+    await db.prepare(
+      'INSERT INTO login_attempts (ip_address, email) VALUES (?, ?)'
+    ).bind(ip, email).run()
+  } catch { /* table may not exist yet — non-fatal */ }
+}
+
+async function clearAttempts(db: D1Database, ip: string, email: string): Promise<void> {
+  try {
+    await db.prepare(
+      'DELETE FROM login_attempts WHERE ip_address = ? AND email = ?'
+    ).bind(ip, email).run()
+  } catch { /* non-fatal */ }
+}
+
 // ============ HELPER FUNCTIONS ============
 
 function generateOrderNumber(): string {
@@ -666,19 +732,34 @@ app.post('/api/auth/login', async (c) => {
       return c.json({ error: 'Email and password are required' }, 400)
     }
 
+    const normalEmail = email.toLowerCase().trim()
+    // Client IP — Cloudflare sets CF-Connecting-IP in production
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+
+    // ── Rate-limit check: 5 failed attempts per 15 minutes ──
+    const rateCheck = await checkRateLimit(c.env.DB, ip, normalEmail)
+    if (!rateCheck.allowed) {
+      return c.json({ error: 'Too many login attempts. Please try again in 15 minutes.' }, 429)
+    }
+
     const user = await c.env.DB.prepare(
       'SELECT id, email, name, role, password_hash FROM users WHERE email = ? AND is_active = 1'
-    ).bind(email.toLowerCase().trim()).first()
+    ).bind(normalEmail).first()
 
     if (!user) {
+      await recordFailedAttempt(c.env.DB, ip, normalEmail)
       return c.json({ error: 'Invalid credentials' }, 401)
     }
 
-    // Compare password hash
+    // Compare password hash (SHA-256)
     const passwordHash = await hashPassword(password)
     if ((user as any).password_hash !== passwordHash && (user as any).password_hash !== password) {
+      await recordFailedAttempt(c.env.DB, ip, normalEmail)
       return c.json({ error: 'Invalid credentials' }, 401)
     }
+
+    // ── Success — clear rate-limit counter ──
+    await clearAttempts(c.env.DB, ip, normalEmail)
 
     const jwtSecret = c.env.JWT_SECRET || 'littlepotli-secret-key'
     const token = generateToken(
@@ -692,9 +773,7 @@ app.post('/api/auth/login', async (c) => {
     })
   } catch (e: any) {
     const msg = e?.message || 'Unknown error'
-    // Log enough to diagnose but never expose secrets
     console.error(`[LOGIN_ERROR] ${msg}`)
-    // Check for common D1 issues
     if (msg.includes('no such table') || msg.includes('D1_ERROR')) {
       return c.json({ error: 'Database not configured. Please run migrations.' }, 503)
     }
@@ -1024,6 +1103,7 @@ import { collectionsPage } from './pages/collections'
 import { aboutPage } from './pages/about'
 import { adminLoginPage } from './pages/admin-login'
 import { adminDashboardPage } from './pages/admin-dashboard'
+import { loginPage } from './pages/login'
 import type { SiteConfig } from './pages/layout'
 
 function getSiteConfig(env: Bindings): SiteConfig {
@@ -1038,8 +1118,17 @@ app.get('/checkout', (c) => c.html(checkoutPage(c.env.RAZORPAY_KEY_ID)))
 app.get('/order-confirmation', (c) => c.html(orderConfirmationPage(getSiteConfig(c.env))))
 app.get('/collections', (c) => c.html(collectionsPage(getSiteConfig(c.env))))
 app.get('/about', (c) => c.html(aboutPage(getSiteConfig(c.env))))
-app.get('/admin', (c) => c.redirect('/admin/login'))
-app.get('/admin/login', (c) => c.html(adminLoginPage()))
-app.get('/admin/dashboard', (c) => c.html(adminDashboardPage()))
+// Customer login/account page
+app.get('/login', (c) => {
+  const config = getSiteConfig(c.env)
+  return c.html(loginPage(config))
+})
+// Obscure admin portal — no public links point here
+app.get('/portal-entry-99', (c) => c.html(adminLoginPage()))
+app.get('/portal-entry-99/dashboard', (c) => c.html(adminDashboardPage()))
+// Legacy admin paths redirect to homepage (no clues for scanners)
+app.get('/admin', (c) => c.redirect('/'))
+app.get('/admin/login', (c) => c.redirect('/'))
+app.get('/admin/dashboard', (c) => c.redirect('/'))
 
 export default app
