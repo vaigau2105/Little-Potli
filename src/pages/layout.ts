@@ -18,8 +18,8 @@ export const htmlHead = (title: string, extraHead = '') => `
   <meta name="description" content="Little Potli - Curated Gifts, Crafted with Love. Discover handpicked accessories and build your perfect gift hamper.">
   <meta property="og:title" content="${title} | Little Potli">
   <meta property="og:description" content="Curated Gifts, Crafted with Love">
-  <meta property="og:image" content="https://www.genspark.ai/api/files/s/xpWlRGhD">
-  <link rel="icon" href="https://www.genspark.ai/api/files/s/xpWlRGhD" type="image/png">
+  <meta property="og:image" content="/static/Logo.jpeg">
+  <link rel="icon" href="/static/favicon.ico" type="image/png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@ export const htmlHead = (title: string, extraHead = '') => `
         extend: {
           colors: {
             brand: {
-              pink: '#E5006D',
+              pink: '#F169A7',
               'pink-light': '#FFC4D6',
               'pink-soft': '#FFE5EC',
               'pink-hover': '#C80058',
@@ -73,7 +73,7 @@ export const navBar = (active = '') => `
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16 md:h-20">
       <a href="/" class="flex items-center gap-3">
-        <img src="https://www.genspark.ai/api/files/s/xpWlRGhD" alt="Little Potli" class="h-12 md:h-14 w-auto">
+        <img src="/static/Logo.jpeg" alt="Little Potli" class="h-12 md:h-14 w-auto">
       </a>
       <div class="hidden md:flex items-center gap-8">
         <a href="/" class="nav-link ${active === 'home' ? 'text-brand-pink' : 'text-brand-maroon'} font-medium text-sm tracking-wide hover:text-brand-pink transition-colors">Home</a>
@@ -93,6 +93,10 @@ export const navBar = (active = '') => `
           <span id="cart-count" class="absolute -top-2 -right-2 bg-brand-pink text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
         </button>
         <button class="md:hidden text-brand-maroon" onclick="toggleMobileMenu()"><i class="fas fa-bars text-xl"></i></button>
+        <!-- Customer Login / Account Icon -->
+        <a href="/login" class="text-brand-maroon hover:text-brand-pink transition-colors relative" title="Account / Login">
+          <i class="fas fa-user text-lg"></i>
+        </a>  
       </div>
     </div>
   </div>
