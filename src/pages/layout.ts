@@ -92,9 +92,6 @@ export const navBar = (active = '') => `
           <i class="fas fa-shopping-bag text-lg"></i>
           <span id="cart-count" class="absolute -top-2 -right-2 bg-brand-pink text-white text-xs rounded-full w-4 h-4 flex items-center justify-center hidden">0</span>
         </button>
-        <a href="/login" class="text-brand-maroon hover:text-brand-pink transition-colors" title="Login / Account">
-          <i class="fas fa-user-circle text-lg"></i>
-        </a>
         <button class="md:hidden text-brand-maroon" onclick="toggleMobileMenu()"><i class="fas fa-bars text-xl"></i></button>
         <!-- Customer Login / Account Icon -->
         <a href="/login" class="text-brand-maroon hover:text-brand-pink transition-colors relative" title="Account / Login">
